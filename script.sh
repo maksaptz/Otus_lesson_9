@@ -48,4 +48,3 @@ else
   ### сообщение в случае попытки запуска второй копии скрипта
   echo "The script is still running PID=$$"
 fi
-~    
