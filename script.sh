@@ -40,7 +40,7 @@ then
         cat access-4560-644067.log | awk '{print $9}'| grep -v "-" > temp
         unique  >> answers
 
-        ### отправляем запрашиваемую информации из файла на почтовый ящик
+        ### отправляем запрашиваемую информации из файла на почту
         cat answers | mail -s "Log Info" root@localhost
         ### после окончания парсинга удаляем используемые файлы
         rm temp answers
