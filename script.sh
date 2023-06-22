@@ -1,36 +1,51 @@
 #!/bin/bash
 
-LOCKFILE=/var/log/.lockFile
+###директория в которой создается lockfile
+LOCKFILE=/var/log/.lockFile 
 
-if (set -o noclobber; echo "$$" > "$LOCKFILE") 2> /dev/null
+###  конструкция которая блокирует запуск нескольких копий скрипта
+if (set -o noclobber; echo "$$" > "$LOCKFILE") 2> /dev/null   
 then
 	trap "rm -f '$LOCKFILE'; exit $?" TERM EXIT
-
+ 
+###функция которая выводит повторяющиеся элементы из временного файла
 	unique () {
      		 sort -r temp.md | uniq -c | sort -nr
 	}
+ 
+ 	### переменная с временем начало парсинга по логам
 	timeStart=$(head -n 1 access-4560-644067.log | awk '{print $4 $5}' | sed 's/\[//; s/\]//')
+ 	### переменная с временем окончания парсинга по логам
 	timeEnd=$(tail -n 1 access-4560-644067.log | awk '{print $4 $5}' | sed 's/\[//; s/\]//')
-	echo "Временной диапозон: $timeStart : $timeEnd" > answers.md
+ 	создаем файл где будет храниться результат и добавляем туда время по логам
+	echo "Временной диапозон: $timeStart : $timeEnd" > answers
 
+	### разделитель заданий
+	echo "Список IP адресов (с наибольшим кол-вом запросов):" >> answers
+ 	### с помощью sed добавили шаблон который выводит ip адреса и добавим их во временный файл
+	sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\).*$/\1/' -et -ed access-4560-644067.log > temp
+ 	### затем из временного файла с помощью функции unique выводим только ip с наибольшим кол-вом запросов
+	unique | head >> answers
 
-	echo "Список IP адресов (с наибольшим кол-вом запросов):" >> answers.md
-	sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\).*$/\1/' -et -ed access-4560-644067.log > temp.md
-	unique | head >> answers.md
+ 	###в целом дальше принцип остается тот-же,  меняются инструменты(команды) для вывода
 
-	echo "Список запрашиваемых URL (с наибольшим кол-вом запросов):" >> answers.md
-	cat access-4560-644067.log | awk '{print $7}' > temp.md
-	unique | head >> answers.md
+	echo "Список запрашиваемых URL (с наибольшим кол-вом запросов):" >> answers
+	cat access-4560-644067.log | awk '{print $7}' > temp
+	unique | head >> answers
+	
+	echo "Ошибки веб-сервера/приложения c момента последнего запуска:" >> answers
+	cat access-4560-644067.log | awk '{print $9}' | grep "^[4-5]" >> answers
 
-	echo "Ошибки веб-сервера/приложения c момента последнего запуска:" >> answers.md
-	cat access-4560-644067.log | awk '{print $9}' | grep "^[4-5]" >> answers.md
-
-	echo "Список всех кодов HTTP ответа с указанием их кол-ва с момента последнего запуска скрипта:" >> answers.md
-	cat access-4560-644067.log | awk '{print $9}'| grep -v "-" > temp.md
-	unique  >> answers.md
-	rm temp.md
-        cat answers.md | mail -s "Log Info" root@localhost
-	rm answers.md
+	echo "Список всех кодов HTTP ответа с указанием их кол-ва с момента последнего запуска скрипта:" >> answers
+	cat access-4560-644067.log | awk '{print $9}'| grep -v "-" > temp
+	unique  >> answers
+	
+ 	### отправляем запрашиваемую информации из файла на почтовый ящик
+        cat answers | mail -s "Log Info" root@localhost
+	### после окончания парсинга удаляем используемые файлы
+	rm temp
+	rm answers
 else
+  ### сообщение в случае попытки запуска второй копии скрипта
   echo "The script is still running PID=$$"
 fi
